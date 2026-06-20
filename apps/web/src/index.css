@@ -1,1 +1,162 @@
-@import "@kova/ui/globals.css";
+@import url("https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Kova theme ───────────────────────────────────────────────
+   Light-first warm palette (beige + green). Dark variant uses the
+   design's near-black surface (#191712) as the base. */
+
+:root {
+  --radius: 0.75rem;
+
+  --background: #ede9e0;
+  --foreground: #191712;
+
+  --card: #fbfaf6;
+  --card-foreground: #191712;
+
+  --popover: #ffffff;
+  --popover-foreground: #191712;
+
+  --primary: #117a5c;
+  --primary-foreground: #fafaf7;
+
+  --secondary: #f4f1ea;
+  --secondary-foreground: #2a271f;
+
+  --muted: #f0ece3;
+  --muted-foreground: #6f6a5c;
+
+  --accent: #e4efe9;
+  --accent-foreground: #2e6b4e;
+
+  --destructive: #cc4b37;
+  --destructive-foreground: #fafaf7;
+
+  --border: #e1dcd1;
+  --input: #e1dcd1;
+  --ring: #117a5c;
+
+  --chart-1: #117a5c;
+  --chart-2: #1fa06b;
+  --chart-3: #7fc9ae;
+  --chart-4: #e9b84d;
+  --chart-5: #e6655a;
+
+  --sidebar: #fbfaf6;
+  --sidebar-foreground: #191712;
+  --sidebar-primary: #117a5c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4efe9;
+  --sidebar-accent-foreground: #2e6b4e;
+  --sidebar-border: #e1dcd1;
+  --sidebar-ring: #117a5c;
+}
+
+.dark {
+  --background: #191712;
+  --foreground: #ede9e0;
+
+  --card: #211e18;
+  --card-foreground: #ede9e0;
+
+  --popover: #211e18;
+  --popover-foreground: #ede9e0;
+
+  --primary: #1fa06b;
+  --primary-foreground: #0b0a08;
+
+  --secondary: #2a271f;
+  --secondary-foreground: #ede9e0;
+
+  --muted: #2a271f;
+  --muted-foreground: #a8a395;
+
+  --accent: #21352b;
+  --accent-foreground: #7fc9ae;
+
+  --destructive: #e6655a;
+  --destructive-foreground: #0b0a08;
+
+  --border: #38332a;
+  --input: #38332a;
+  --ring: #1fa06b;
+
+  --chart-1: #1fa06b;
+  --chart-2: #7fc9ae;
+  --chart-3: #117a5c;
+  --chart-4: #e9b84d;
+  --chart-5: #e6655a;
+
+  --sidebar: #15130f;
+  --sidebar-foreground: #ede9e0;
+  --sidebar-primary: #1fa06b;
+  --sidebar-primary-foreground: #0b0a08;
+  --sidebar-accent: #21352b;
+  --sidebar-accent-foreground: #7fc9ae;
+  --sidebar-border: #2a271f;
+  --sidebar-ring: #1fa06b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+  }
+}
