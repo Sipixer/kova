@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { FileChip } from "@/components/file-chip";
 import { OpenButtons } from "@/components/open-file-button";
@@ -31,9 +31,18 @@ function Recherche() {
     }),
   );
 
+  const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   const submit = (q: string) => {
+    clearTimeout(debounce.current);
     setText(q);
     setQuery(q.trim());
+  };
+
+  const onType = (value: string) => {
+    setText(value);
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => setQuery(value.trim()), 280);
   };
 
   const list = results.data ?? [];
@@ -55,7 +64,7 @@ function Recherche() {
         <input
           autoFocus
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => onType(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit(text)}
           placeholder="le fichier de budget ouvert la semaine dernière…"
           className="w-full bg-transparent text-[17px] outline-none placeholder:text-muted-foreground"

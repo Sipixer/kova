@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Search, Sparkles } from "lucide-react";
 
 import { FileChip } from "@/components/file-chip";
 import { OnlineDot } from "@/components/online-dot";
@@ -18,7 +18,7 @@ function Accueil() {
   const machineList = machines ?? [];
 
   const recent = useQuery(
-    orpc.captures.recent.queryOptions({ input: { limit: 6 } }),
+    orpc.captures.live.experimental_liveOptions({ input: { limit: 6 } }),
   );
   const recentList = recent.data ?? [];
 
@@ -68,8 +68,13 @@ function Accueil() {
                 >
                   <FileChip source={it.source} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold">
-                      {it.title}
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-semibold">
+                        {it.title}
+                      </span>
+                      {!it.embedded ? (
+                        <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
+                      ) : null}
                     </div>
                     <div className="truncate font-mono text-[11px] text-muted-foreground">
                       {it.path ?? it.machineId}

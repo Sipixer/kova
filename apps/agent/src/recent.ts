@@ -75,7 +75,7 @@ export function watchRecent(
 
   rescan();
 
-  const watcher = watch(RECENT_DIR, { persistent: false }, () => {
+  const watcher = watch(RECENT_DIR, { persistent: true }, () => {
     clearTimeout(timer);
     timer = setTimeout(rescan, 800); // debounce bursts
   });

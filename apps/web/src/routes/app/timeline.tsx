@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 
 import { FileChip } from "@/components/file-chip";
 import { OpenButtons } from "@/components/open-file-button";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/app/timeline")({
 
 function Timeline() {
   const recent = useQuery(
-    orpc.captures.recent.queryOptions({ input: { limit: 100 } }),
+    orpc.captures.live.experimental_liveOptions({ input: { limit: 100 } }),
   );
   const list = recent.data ?? [];
   const { data: machines } = useMachines();
@@ -55,8 +56,16 @@ function Timeline() {
                     <span className="absolute -left-[27px] size-2.5 rounded-full border-2 border-background bg-primary" />
                     <FileChip source={it.source} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[14.5px] font-semibold">
-                        {it.title}
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[14.5px] font-semibold">
+                          {it.title}
+                        </span>
+                        {!it.embedded ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" />
+                            indexation…
+                          </span>
+                        ) : null}
                       </div>
                       <div className="truncate font-mono text-[11px] text-muted-foreground">
                         {it.path ?? it.machineId}

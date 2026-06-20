@@ -2,6 +2,7 @@ import { eventIterator, os } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { notifyCapturesChanged } from "../captures-events";
 import { CommandSchema, subscribeCommands } from "../commands";
 import { db } from "../db/client";
 import { captures } from "../db/schema";
@@ -9,6 +10,17 @@ import { embed } from "../embedding";
 import { presence } from "../presence";
 
 const OWNER = "dev"; // until Better Auth lands
+
+/** Background embedding: fills in a capture's vector, then notifies live queries. */
+async function embedCapture(id: string, text: string) {
+  try {
+    const embedding = await embed(text, "low");
+    await db.update(captures).set({ embedding }).where(eq(captures.id, id));
+    notifyCapturesChanged();
+  } catch (error) {
+    console.error(`[embed] failed for capture ${id}:`, error);
+  }
+}
 
 /**
  * Procedures the agent calls over WebSocket. The server injects the
@@ -77,13 +89,8 @@ export const agentRouter = {
         if (existing[0]) return { id: existing[0].id, deduped: true };
       }
 
-      // Embed the filename at minimum (so name-only files like images are
-      // searchable), plus the extracted content when available.
-      const embedding =
-        input.path || input.content
-          ? await embed([input.title, input.content].filter(Boolean).join("\n"))
-          : null;
-
+      // Store immediately (it shows on the timeline right away), then embed in
+      // the background — the file becomes searchable once that completes.
       const [row] = await db
         .insert(captures)
         .values({
@@ -93,10 +100,18 @@ export const agentRouter = {
           title: input.title,
           path: input.path,
           content: input.content,
-          embedding,
           capturedAt,
         })
         .returning({ id: captures.id });
+
+      notifyCapturesChanged();
+
+      if (row && (input.path || input.content)) {
+        void embedCapture(
+          row.id,
+          [input.title, input.content].filter(Boolean).join("\n"),
+        );
+      }
 
       return { id: row?.id, deduped: false };
     }),

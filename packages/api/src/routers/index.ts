@@ -4,6 +4,7 @@ import { and, cosineDistance, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../index";
+import { subscribeCaptures } from "../captures-events";
 import { pushCommand } from "../commands";
 import { db } from "../db/client";
 import { captures } from "../db/schema";
@@ -21,7 +22,28 @@ const captureFields = {
   machineId: captures.machineId,
   capturedAt: captures.capturedAt,
   snippet: sql<string | null>`left(${captures.content}, 220)`,
+  embedded: sql<boolean>`${captures.embedding} IS NOT NULL`,
 };
+
+const CaptureRowSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  app: z.string().nullable(),
+  title: z.string(),
+  path: z.string().nullable(),
+  machineId: z.string(),
+  capturedAt: z.date(),
+  snippet: z.string().nullable(),
+  embedded: z.boolean(),
+});
+
+const recentCaptures = (limit: number) =>
+  db
+    .select(captureFields)
+    .from(captures)
+    .where(eq(captures.ownerId, OWNER))
+    .orderBy(desc(captures.capturedAt))
+    .limit(limit);
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -49,20 +71,28 @@ export const appRouter = {
     /** Most recent captures (the activity timeline). */
     recent: publicProcedure
       .input(z.object({ limit: z.number().int().max(100).default(30) }).optional())
-      .handler(({ input }) =>
-        db
-          .select(captureFields)
-          .from(captures)
-          .where(eq(captures.ownerId, OWNER))
-          .orderBy(desc(captures.capturedAt))
-          .limit(input?.limit ?? 30),
-      ),
+      .handler(({ input }) => recentCaptures(input?.limit ?? 30)),
+
+    /** Live recent captures — re-emits whenever a new file is captured. */
+    live: publicProcedure
+      .input(z.object({ limit: z.number().int().max(100).default(30) }).optional())
+      .output(eventIterator(CaptureRowSchema.array()))
+      .handler(async function* ({ input, signal }) {
+        const limit = input?.limit ?? 30;
+        const changes = subscribeCaptures(signal);
+        yield await recentCaptures(limit);
+        while (true) {
+          const next = await changes.next();
+          if (next.done) break;
+          yield await recentCaptures(limit);
+        }
+      }),
 
     /** Semantic search over embedded captures. */
     search: publicProcedure
       .input(z.object({ query: z.string().min(1), limit: z.number().int().max(20).default(8) }))
       .handler(async ({ input }) => {
-        const vector = await embed(input.query);
+        const vector = await embed(input.query, "high");
         const similarity = sql<number>`1 - (${cosineDistance(captures.embedding, vector)})`;
         return db
           .select({ ...captureFields, similarity })
