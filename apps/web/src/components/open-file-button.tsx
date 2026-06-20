@@ -15,13 +15,13 @@ type App = "default" | "browser";
 type Status = "idle" | "loading" | "done";
 
 function OpenButton({
-  captureId,
+  documentId,
   machineName,
   app,
   label,
   icon: Icon,
 }: {
-  captureId: string;
+  documentId: string;
   machineName: string;
   app: App;
   label: string;
@@ -33,7 +33,7 @@ function OpenButton({
     if (status === "loading") return;
     setStatus("loading");
     try {
-      const { sent } = await client.openFile({ id: captureId, app });
+      const { sent } = await client.openFile({ id: documentId, app });
       if (!sent) {
         setStatus("idle");
         return;
@@ -78,23 +78,23 @@ function OpenButton({
 
 /** "Open" + "Open in browser" actions for a captured file on a live machine. */
 export function OpenButtons({
-  captureId,
+  documentId,
   machineName,
 }: {
-  captureId: string;
+  documentId: string;
   machineName: string;
 }) {
   return (
     <div className="flex shrink-0 gap-2">
       <OpenButton
-        captureId={captureId}
+        documentId={documentId}
         machineName={machineName}
         app="default"
         label="Ouvrir"
         icon={ExternalLink}
       />
       <OpenButton
-        captureId={captureId}
+        documentId={documentId}
         machineName={machineName}
         app="browser"
         label="Navigateur"

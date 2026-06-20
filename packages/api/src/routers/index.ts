@@ -7,42 +7,44 @@ import { publicProcedure } from "../index";
 import { subscribeCaptures } from "../captures-events";
 import { pushCommand } from "../commands";
 import { db } from "../db/client";
-import { captures } from "../db/schema";
+import { documents, opens } from "../db/schema";
 import { embed } from "../embedding";
 import { MachineSchema, presence } from "../presence";
 
 const OWNER = "dev"; // until Better Auth lands
 
-const captureFields = {
-  id: captures.id,
-  source: captures.source,
-  app: captures.app,
-  title: captures.title,
-  path: captures.path,
-  machineId: captures.machineId,
-  capturedAt: captures.capturedAt,
-  snippet: sql<string | null>`left(${captures.content}, 220)`,
-  embedded: sql<boolean>`${captures.embedding} IS NOT NULL`,
+// A timeline row = one open joined with its document.
+const timelineFields = {
+  id: opens.id,
+  documentId: documents.id,
+  openedAt: opens.openedAt,
+  title: documents.title,
+  path: documents.path,
+  source: documents.source,
+  machineId: documents.machineId,
+  snippet: sql<string | null>`left(${documents.content}, 220)`,
+  embedded: sql<boolean>`${documents.embedding} IS NOT NULL`,
 };
 
-const CaptureRowSchema = z.object({
+const TimelineRowSchema = z.object({
   id: z.string(),
-  source: z.string(),
-  app: z.string().nullable(),
+  documentId: z.string(),
+  openedAt: z.date(),
   title: z.string(),
-  path: z.string().nullable(),
+  path: z.string(),
+  source: z.string(),
   machineId: z.string(),
-  capturedAt: z.date(),
   snippet: z.string().nullable(),
   embedded: z.boolean(),
 });
 
-const recentCaptures = (limit: number) =>
+const recentTimeline = (limit: number) =>
   db
-    .select(captureFields)
-    .from(captures)
-    .where(eq(captures.ownerId, OWNER))
-    .orderBy(desc(captures.capturedAt))
+    .select(timelineFields)
+    .from(opens)
+    .innerJoin(documents, eq(opens.documentId, documents.id))
+    .where(eq(documents.ownerId, OWNER))
+    .orderBy(desc(opens.openedAt))
     .limit(limit);
 
 export const appRouter = {
@@ -67,46 +69,61 @@ export const appRouter = {
       }),
   },
 
-  captures: {
-    /** Most recent captures (the activity timeline). */
+  timeline: {
+    /** Recent opens (the activity timeline). */
     recent: publicProcedure
       .input(z.object({ limit: z.number().int().max(100).default(30) }).optional())
-      .handler(({ input }) => recentCaptures(input?.limit ?? 30)),
+      .handler(({ input }) => recentTimeline(input?.limit ?? 30)),
 
-    /** Live recent captures — re-emits whenever a new file is captured. */
+    /** Live timeline — re-emits whenever a file is opened or finishes indexing. */
     live: publicProcedure
       .input(z.object({ limit: z.number().int().max(100).default(30) }).optional())
-      .output(eventIterator(CaptureRowSchema.array()))
+      .output(eventIterator(TimelineRowSchema.array()))
       .handler(async function* ({ input, signal }) {
         const limit = input?.limit ?? 30;
         const changes = subscribeCaptures(signal);
-        yield await recentCaptures(limit);
+        yield await recentTimeline(limit);
         while (true) {
           const next = await changes.next();
           if (next.done) break;
-          yield await recentCaptures(limit);
+          yield await recentTimeline(limit);
         }
-      }),
-
-    /** Semantic search over embedded captures. */
-    search: publicProcedure
-      .input(z.object({ query: z.string().min(1), limit: z.number().int().max(20).default(8) }))
-      .handler(async ({ input }) => {
-        const vector = await embed(input.query, "high");
-        const similarity = sql<number>`1 - (${cosineDistance(captures.embedding, vector)})`;
-        return db
-          .select({ ...captureFields, similarity })
-          .from(captures)
-          .where(and(eq(captures.ownerId, OWNER), isNotNull(captures.embedding)))
-          .orderBy(desc(similarity))
-          .limit(input.limit);
       }),
   },
 
+  /** Semantic search over embedded documents (one current version per file). */
+  search: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().int().max(20).default(8),
+      }),
+    )
+    .handler(async ({ input }) => {
+      const vector = await embed(input.query, "high");
+      const similarity = sql<number>`1 - (${cosineDistance(documents.embedding, vector)})`;
+      const lastOpenedAt = sql<Date | null>`(SELECT max(${opens.openedAt}) FROM ${opens} WHERE ${opens.documentId} = ${documents.id})`;
+      return db
+        .select({
+          id: documents.id,
+          title: documents.title,
+          path: documents.path,
+          source: documents.source,
+          machineId: documents.machineId,
+          snippet: sql<string | null>`left(${documents.content}, 220)`,
+          lastOpenedAt,
+          similarity,
+        })
+        .from(documents)
+        .where(and(eq(documents.ownerId, OWNER), isNotNull(documents.embedding)))
+        .orderBy(desc(similarity))
+        .limit(input.limit);
+    }),
+
   /**
-   * Ask the agent to open a captured file. The client only passes the capture
-   * id — the server resolves the (owner-scoped) machine + path from the DB, so
-   * a client can never make an agent open an arbitrary path.
+   * Ask the agent to open a document's file (default app or default browser).
+   * The client passes a document id — the server resolves the owner-scoped
+   * machine + path, so a client can never make an agent open an arbitrary path.
    */
   openFile: publicProcedure
     .input(
@@ -117,18 +134,18 @@ export const appRouter = {
     )
     .output(z.object({ sent: z.boolean() }))
     .handler(async ({ input }) => {
-      const [row] = await db
-        .select({ machineId: captures.machineId, path: captures.path })
-        .from(captures)
-        .where(and(eq(captures.ownerId, OWNER), eq(captures.id, input.id)))
+      const [doc] = await db
+        .select({ machineId: documents.machineId, path: documents.path })
+        .from(documents)
+        .where(and(eq(documents.ownerId, OWNER), eq(documents.id, input.id)))
         .limit(1);
 
-      if (!row?.path) return { sent: false };
+      if (!doc?.path) return { sent: false };
 
       return {
-        sent: pushCommand(row.machineId, {
+        sent: pushCommand(doc.machineId, {
           type: "open",
-          path: row.path,
+          path: doc.path,
           app: input.app,
         }),
       };

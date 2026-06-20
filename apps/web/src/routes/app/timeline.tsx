@@ -14,7 +14,7 @@ export const Route = createFileRoute("/app/timeline")({
 
 function Timeline() {
   const recent = useQuery(
-    orpc.captures.live.experimental_liveOptions({ input: { limit: 100 } }),
+    orpc.timeline.live.experimental_liveOptions({ input: { limit: 100 } }),
   );
   const list = recent.data ?? [];
   const { data: machines } = useMachines();
@@ -23,7 +23,7 @@ function Timeline() {
   // Group by day, preserving the recent-first order.
   const groups: { day: string; items: typeof list }[] = [];
   for (const item of list) {
-    const day = formatDay(item.capturedAt);
+    const day = formatDay(item.openedAt);
     const last = groups.at(-1);
     if (last && last.day === day) last.items.push(item);
     else groups.push({ day, items: [item] });
@@ -72,10 +72,13 @@ function Timeline() {
                       </div>
                     </div>
                     {it.path && online.has(it.machineId) ? (
-                      <OpenButtons captureId={it.id} machineName={it.machineId} />
+                      <OpenButtons
+                        documentId={it.documentId}
+                        machineName={it.machineId}
+                      />
                     ) : null}
                     <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">
-                      {formatWhen(it.capturedAt)}
+                      {formatWhen(it.openedAt)}
                     </span>
                   </div>
                 ))}

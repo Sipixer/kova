@@ -1,24 +1,24 @@
 import { eventIterator, os } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { notifyCapturesChanged } from "../captures-events";
 import { CommandSchema, subscribeCommands } from "../commands";
 import { db } from "../db/client";
-import { captures } from "../db/schema";
+import { documents, opens } from "../db/schema";
 import { embed } from "../embedding";
 import { presence } from "../presence";
 
 const OWNER = "dev"; // until Better Auth lands
 
-/** Background embedding: fills in a capture's vector, then notifies live queries. */
-async function embedCapture(id: string, text: string) {
+/** Background embedding: fills a document's vector, then notifies live queries. */
+async function embedDocument(id: string, text: string) {
   try {
     const embedding = await embed(text, "low");
-    await db.update(captures).set({ embedding }).where(eq(captures.id, id));
+    await db.update(documents).set({ embedding }).where(eq(documents.id, id));
     notifyCapturesChanged();
   } catch (error) {
-    console.error(`[embed] failed for capture ${id}:`, error);
+    console.error(`[embed] failed for document ${id}:`, error);
   }
 }
 
@@ -55,65 +55,118 @@ export const agentRouter = {
       }
     }),
 
-  /** A focus capture from the agent. Text content (if any) is embedded here. */
+  /**
+   * What the server already has for a machine (path + the version it knows).
+   * The agent diffs this against its Recent log to send only new/changed files.
+   */
+  sync: ao.input(z.object({ machineId: z.string() })).handler(({ input }) =>
+    db
+      .select({
+        path: documents.path,
+        lastModified: documents.lastModified,
+      })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.ownerId, OWNER),
+          eq(documents.machineId, input.machineId),
+          isNotNull(documents.lastModified),
+        ),
+      ),
+  ),
+
+  /**
+   * Record that a file was opened. When `content` is present (string or null),
+   * the agent has decided the file is new/updated → upsert + (re)embed. When
+   * `content` is omitted, only the open event is recorded (no re-embed).
+   */
   ingest: ao
     .input(
       z.object({
         machineId: z.string(),
-        source: z.string(),
-        app: z.string().optional(),
+        path: z.string(),
         title: z.string(),
-        path: z.string().optional(),
-        content: z.string().optional(),
-        capturedAt: z.number().int().optional(),
+        source: z.string(),
+        openedAt: z.number(),
+        lastModified: z.number().optional(),
+        content: z.string().nullable().optional(),
       }),
     )
     .handler(async ({ input }) => {
-      const capturedAt = input.capturedAt
-        ? new Date(input.capturedAt)
+      const lastModified = input.lastModified
+        ? new Date(input.lastModified)
         : undefined;
 
-      // Dedup: same file opened at the same time → already indexed.
-      if (input.path && capturedAt) {
-        const existing = await db
-          .select({ id: captures.id })
-          .from(captures)
-          .where(
-            and(
-              eq(captures.ownerId, OWNER),
-              eq(captures.path, input.path),
-              eq(captures.capturedAt, capturedAt),
-            ),
-          )
-          .limit(1);
-        if (existing[0]) return { id: existing[0].id, deduped: true };
+      const [existing] = await db
+        .select({
+          id: documents.id,
+          lastModified: documents.lastModified,
+          hasEmbedding: sql<boolean>`${documents.embedding} IS NOT NULL`,
+        })
+        .from(documents)
+        .where(
+          and(
+            eq(documents.ownerId, OWNER),
+            eq(documents.machineId, input.machineId),
+            eq(documents.path, input.path),
+          ),
+        )
+        .limit(1);
+
+      let documentId: string;
+      let needEmbed = false;
+
+      if (!existing) {
+        const [row] = await db
+          .insert(documents)
+          .values({
+            machineId: input.machineId,
+            path: input.path,
+            title: input.title,
+            source: input.source,
+            content: input.content ?? null,
+            lastModified,
+          })
+          .returning({ id: documents.id });
+        documentId = row?.id ?? "";
+        needEmbed = true;
+      } else {
+        documentId = existing.id;
+        const newer =
+          lastModified !== undefined &&
+          (!existing.lastModified || lastModified > existing.lastModified);
+        if (input.content !== undefined && (newer || !existing.hasEmbedding)) {
+          await db
+            .update(documents)
+            .set({
+              title: input.title,
+              source: input.source,
+              content: input.content ?? null,
+              lastModified: lastModified ?? existing.lastModified,
+              embedding: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(documents.id, documentId));
+          needEmbed = true;
+        }
       }
 
-      // Store immediately (it shows on the timeline right away), then embed in
-      // the background — the file becomes searchable once that completes.
-      const [row] = await db
-        .insert(captures)
-        .values({
-          machineId: input.machineId,
-          source: input.source,
-          app: input.app,
-          title: input.title,
-          path: input.path,
-          content: input.content,
-          capturedAt,
-        })
-        .returning({ id: captures.id });
+      // Record the open (idempotent on (documentId, openedAt)).
+      await db
+        .insert(opens)
+        .values({ documentId, openedAt: new Date(input.openedAt) })
+        .onConflictDoNothing();
 
       notifyCapturesChanged();
 
-      if (row && (input.path || input.content)) {
-        void embedCapture(
-          row.id,
+      if (needEmbed) {
+        void embedDocument(
+          documentId,
           [input.title, input.content].filter(Boolean).join("\n"),
         );
       }
 
-      return { id: row?.id, deduped: false };
+      return { documentId };
     }),
 };
 

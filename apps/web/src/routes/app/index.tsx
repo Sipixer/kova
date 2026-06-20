@@ -18,7 +18,7 @@ function Accueil() {
   const machineList = machines ?? [];
 
   const recent = useQuery(
-    orpc.captures.live.experimental_liveOptions({ input: { limit: 6 } }),
+    orpc.timeline.live.experimental_liveOptions({ input: { limit: 6 } }),
   );
   const recentList = recent.data ?? [];
 
@@ -81,7 +81,7 @@ function Accueil() {
                     </div>
                   </div>
                   <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">
-                    {formatWhen(it.capturedAt)}
+                    {formatWhen(it.openedAt)}
                   </span>
                 </div>
               ))

@@ -1,3 +1,4 @@
+import { stat } from "node:fs/promises";
 import { hostname } from "node:os";
 import { basename, extname } from "node:path";
 
@@ -19,28 +20,55 @@ const ws = new WebSocket(SERVER_WS_URL);
 const link = new RPCLink({ websocket: ws });
 const client: RouterClient<AgentRouter> = createORPCClient(link);
 
+// path -> the file mtime (ms) the server already knows. Seeded by sync() so we
+// only re-send content for new or modified files (no agent-side DB needed).
+const versionCache = new Map<string, number>();
+
 let heartbeat: ReturnType<typeof setInterval> | undefined;
 let stopWatch: (() => void) | undefined;
 
 async function indexDoc(doc: RecentDoc) {
-  const extracted = isSupported(doc.path) ? await extractText(doc.path) : null;
-  const content = extracted?.text.trim()
-    ? extracted.text.slice(0, MAX_CONTENT)
-    : undefined;
-  const source = extname(doc.path).slice(1).toLowerCase() || "file";
+  let mtimeMs: number;
   try {
-    const res = await client.ingest({
-      machineId: MACHINE,
-      source,
-      title: basename(doc.path),
-      path: doc.path,
-      content,
-      capturedAt: doc.openedAt,
-    });
-    if (!res.deduped) {
-      console.log(
-        `[agent] indexed ${basename(doc.path)}${content ? "" : " (name only)"}`,
-      );
+    mtimeMs = Math.floor((await stat(doc.path)).mtimeMs);
+  } catch {
+    return; // file no longer exists
+  }
+
+  const known = versionCache.get(doc.path);
+  const changed = known === undefined || mtimeMs > known;
+  const title = basename(doc.path);
+  const source = extname(doc.path).slice(1).toLowerCase() || "file";
+
+  try {
+    if (changed) {
+      const extracted = isSupported(doc.path)
+        ? await extractText(doc.path)
+        : null;
+      const content = extracted?.text.trim()
+        ? extracted.text.slice(0, MAX_CONTENT)
+        : null; // null = name-only (still searchable by filename)
+
+      await client.ingest({
+        machineId: MACHINE,
+        path: doc.path,
+        title,
+        source,
+        openedAt: doc.openedAt,
+        lastModified: mtimeMs,
+        content,
+      });
+      versionCache.set(doc.path, mtimeMs);
+      console.log(`[agent] indexed ${title}${content ? "" : " (name only)"}`);
+    } else {
+      // Unchanged file: just record the open (cheap, deduped server-side).
+      await client.ingest({
+        machineId: MACHINE,
+        path: doc.path,
+        title,
+        source,
+        openedAt: doc.openedAt,
+      });
     }
   } catch (error) {
     console.error(`[agent] ingest failed for ${doc.path}:`, error);
@@ -106,6 +134,20 @@ ws.addEventListener("open", async () => {
     heartbeat = setInterval(() => {
       client.heartbeat().catch(() => {});
     }, HEARTBEAT_MS);
+
+    // Seed the version cache so unchanged files aren't re-sent / re-embedded.
+    try {
+      const known = await client.sync({ machineId: MACHINE });
+      for (const k of known) {
+        versionCache.set(
+          k.path,
+          k.lastModified ? new Date(k.lastModified).getTime() : 0,
+        );
+      }
+      console.log(`[agent] synced ${known.length} known files`);
+    } catch (error) {
+      console.error("[agent] sync failed:", error);
+    }
 
     stopWatch = watchRecent((doc) => void indexDoc(doc));
     void listenForCommands();

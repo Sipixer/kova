@@ -24,7 +24,7 @@ function Recherche() {
   const [query, setQuery] = useState("");
 
   const results = useQuery(
-    orpc.captures.search.queryOptions({
+    orpc.search.queryOptions({
       input: { query },
       enabled: query.trim().length > 0,
       staleTime: 60_000,
@@ -122,11 +122,12 @@ function Recherche() {
                   </p>
                 ) : null}
                 <div className="mt-1.5 truncate font-mono text-[11px] text-muted-foreground/80">
-                  {it.path ?? it.machineId} · {formatWhen(it.capturedAt)}
+                  {it.path ?? it.machineId}
+                  {it.lastOpenedAt ? ` · ${formatWhen(it.lastOpenedAt)}` : ""}
                 </div>
               </div>
               {it.path && online.has(it.machineId) ? (
-                <OpenButtons captureId={it.id} machineName={it.machineId} />
+                <OpenButtons documentId={it.id} machineName={it.machineId} />
               ) : null}
             </div>
           ))}
