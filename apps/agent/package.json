@@ -1,0 +1,21 @@
+{
+  "name": "agent",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "check-types": "tsc --noEmit",
+    "compile": "bun build --compile --minify --sourcemap ./src/index.ts --outfile kova-agent"
+  },
+  "dependencies": {
+    "@kova/api": "workspace:*",
+    "@orpc/client": "catalog:",
+    "@orpc/server": "catalog:"
+  },
+  "devDependencies": {
+    "@kova/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  }
+}

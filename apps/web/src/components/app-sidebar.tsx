@@ -54,9 +54,10 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV.map((item) => {
-                const active = item.exact
-                  ? pathname === item.to
-                  : pathname.startsWith(item.to);
+                const active =
+                  "exact" in item && item.exact
+                    ? pathname === item.to
+                    : pathname.startsWith(item.to);
                 return (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton

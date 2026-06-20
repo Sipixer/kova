@@ -1,77 +1,71 @@
-# kova
+# Kova
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Hono, ORPC, and more.
+Kova is a **context memory for your AI**. A lightweight agent runs on your
+machines, captures what you work on (documents, web pages) and makes it
+searchable by meaning — so the AI you already use (ChatGPT, Claude) can answer
+from your real work.
 
-## Features
+## Stack
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Bun** - Runtime environment
-- **Turborepo** - Optimized monorepo build system
+- **TanStack Start** (React, SSR) — web dashboard
+- **Hono** on **Bun** — server, exposing **oRPC** over HTTP (`/rpc`) and WebSocket (`/ws`)
+- **oRPC** — end-to-end type-safe APIs (HTTP + WebSocket, live queries)
+- **shadcn/ui** (Base UI) + **Tailwind v4** — UI
+- **Turborepo** + **Bun workspaces** — monorepo
+- **TypeScript 7** (native compiler)
 
-## Getting Started
+## Architecture
 
-First, install the dependencies:
+```
+apps/agent (Bun)  ──── oRPC over WebSocket ────▶  apps/server (Hono on Bun)
+   register / heartbeat                              /ws   → presence hub (in-memory)
+                                                     /rpc  → oRPC HTTP + live queries
+apps/web (TanStack Start)  ── oRPC HTTP + live query ──▶  apps/server
+   live list of connected machines (React Query)
+```
+
+- The **agent** opens a WebSocket to the server and registers itself over oRPC.
+  When it stops, the socket closes and the server removes it from presence.
+- The **server** keeps an in-memory registry of connected machines and exposes
+  a live `machines` stream (oRPC event iterator).
+- The **web** dashboard subscribes to that stream with React Query
+  (`experimental_liveOptions`) and shows connected machines in real time.
+
+## Getting started
 
 ```bash
 bun install
+cp apps/server/.env.example apps/server/.env
+cp apps/web/.env.example apps/web/.env
+
+bun run dev        # web (:3001) + server (:3000)
 ```
 
-Then, run the development server:
+Then, in separate terminals, start one or more agents:
 
 ```bash
-bun run dev
+bun run agent      # run it again for a second machine
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Open http://localhost:3001 — connected agents appear live under **Machines**.
 
-## UI Customization
+## Scripts
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
+- `bun run dev` — web + server in watch mode
+- `bun run agent` — start an agent (run multiple times for multiple machines)
+- `bun run build` — build web (Vite) and server (`bun build`)
+- `bun run check-types` — typecheck everything (native `tsc`)
 
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@kova/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Project Structure
+## Structure
 
 ```
 kova/
 ├── apps/
-│   ├── web/         # Frontend application (React + TanStack Start)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
+│   ├── web/      # TanStack Start dashboard (shadcn UI)
+│   ├── server/   # Hono on Bun — oRPC over HTTP (/rpc) + WebSocket (/ws)
+│   └── agent/    # Bun agent — connects over oRPC/WS, compilable to a binary
+└── packages/
+    ├── api/      # shared oRPC routers + presence
+    ├── env/      # typed environment variables (t3-env)
+    └── config/   # shared tsconfig
 ```
-
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps

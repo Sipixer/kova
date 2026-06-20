@@ -4,6 +4,7 @@ import { ArrowRight, Search, Sparkles } from "lucide-react";
 import { FileChip } from "@/components/file-chip";
 import { OnlineDot } from "@/components/online-dot";
 import { Button } from "@/components/ui/button";
+import { platformLabel, useMachines } from "@/hooks/use-machines";
 
 export const Route = createFileRoute("/app/")({
   component: Accueil,
@@ -40,12 +41,10 @@ const RECENT = [
   },
 ];
 
-const MACHINES = [
-  { name: "MacBook de Léa", last: "en ligne", online: true },
-  { name: "PC Bureau", last: "il y a 1 h", online: false },
-];
-
 function Accueil() {
+  const { data: machines } = useMachines();
+  const machineList = machines ?? [];
+
   return (
     <div className="px-4 py-8 pb-16 sm:px-10">
       <h1 className="text-[28px] font-extrabold tracking-tight">Bonjour, Léa</h1>
@@ -105,22 +104,32 @@ function Accueil() {
         {/* side column */}
         <div className="flex flex-col gap-5">
           <section className="rounded-2xl border border-border bg-card px-4 pt-4 pb-2">
-            <div className="mb-3 text-sm font-bold">Vos machines</div>
-            {MACHINES.map((m) => (
-              <div key={m.name} className="flex items-center gap-2.5 py-2">
-                {m.online ? (
-                  <OnlineDot />
-                ) : (
-                  <span className="size-2 rounded-full bg-muted-foreground/40" />
-                )}
-                <div className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
-                  {m.name}
-                </div>
-                <span className="font-mono text-[11px] text-muted-foreground/80">
-                  {m.last}
-                </span>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-bold">Vos machines</span>
+              <Link
+                to="/app/machines"
+                className="font-mono text-[11px] font-semibold text-primary hover:underline"
+              >
+                {machineList.length} en ligne
+              </Link>
+            </div>
+            {machineList.length === 0 ? (
+              <div className="py-3 text-[13px] text-muted-foreground">
+                Aucune machine connectée.
               </div>
-            ))}
+            ) : (
+              machineList.map((m) => (
+                <div key={m.id} className="flex items-center gap-2.5 py-2">
+                  <OnlineDot />
+                  <div className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
+                    {m.hostname}
+                  </div>
+                  <span className="font-mono text-[11px] text-muted-foreground/80">
+                    {platformLabel(m.platform)}
+                  </span>
+                </div>
+              ))
+            )}
           </section>
 
           <section className="rounded-2xl bg-foreground p-5 text-background">

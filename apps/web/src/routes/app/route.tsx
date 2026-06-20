@@ -2,7 +2,6 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { OnlineDot } from "@/components/online-dot";
 import {
   SidebarInset,
   SidebarProvider,
@@ -38,10 +37,6 @@ function AppTopbar() {
         <span className="shrink-0 rounded-md border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
           ⌘K
         </span>
-      </div>
-      <div className="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-semibold text-primary">
-        <OnlineDot />
-        <span className="hidden sm:inline">2 machines · en ligne</span>
       </div>
     </header>
   );
