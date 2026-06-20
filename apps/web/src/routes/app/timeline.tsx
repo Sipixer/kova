@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 
 import { FileChip } from "@/components/file-chip";
 import { OpenButtons } from "@/components/open-file-button";
 import { useMachines } from "@/hooks/use-machines";
-import { formatDay, formatWhen } from "@/lib/format";
+import { formatDay, formatTime, formatWhen } from "@/lib/format";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/app/timeline")({
@@ -20,13 +20,22 @@ function Timeline() {
   const { data: machines } = useMachines();
   const online = new Set((machines ?? []).map((m) => m.hostname));
 
-  // Group by day, preserving the recent-first order.
-  const groups: { day: string; items: typeof list }[] = [];
+  type Item = (typeof list)[number];
+  // Group by day, then collapse re-opens of the same file into one entry: the
+  // newest open headlines, earlier opens of that day are shown small below.
+  const days: { day: string; docs: { doc: Item; opens: Date[] }[] }[] = [];
   for (const item of list) {
     const day = formatDay(item.openedAt);
-    const last = groups.at(-1);
-    if (last && last.day === day) last.items.push(item);
-    else groups.push({ day, items: [item] });
+    let dayGroup = days.at(-1);
+    if (!dayGroup || dayGroup.day !== day) {
+      dayGroup = { day, docs: [] };
+      days.push(dayGroup);
+    }
+    const existing = dayGroup.docs.find(
+      (d) => d.doc.documentId === item.documentId,
+    );
+    if (existing) existing.opens.push(item.openedAt);
+    else dayGroup.docs.push({ doc: item, opens: [item.openedAt] });
   }
 
   return (
@@ -42,25 +51,31 @@ function Timeline() {
         </div>
       ) : (
         <div className="flex flex-col gap-8">
-          {groups.map((group) => (
+          {days.map((group) => (
             <div key={group.day}>
               <div className="mb-3 font-mono text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.day}
               </div>
               <div className="ml-1.5 flex flex-col gap-2.5 border-l-2 border-border pl-5">
-                {group.items.map((it) => (
+                {group.docs.map(({ doc, opens }) => (
                   <div
-                    key={it.id}
+                    key={doc.documentId}
                     className="relative flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3"
                   >
                     <span className="absolute -left-[27px] size-2.5 rounded-full border-2 border-background bg-primary" />
-                    <FileChip source={it.source} />
+                    <FileChip source={doc.source} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[14.5px] font-semibold">
-                          {it.title}
+                          {doc.title}
                         </span>
-                        {!it.embedded ? (
+                        {opens.length > 1 ? (
+                          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+                            <RotateCw className="size-2.5" />
+                            {opens.length}×
+                          </span>
+                        ) : null}
+                        {!doc.embedded ? (
                           <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground">
                             <Loader2 className="size-3 animate-spin" />
                             indexation…
@@ -68,17 +83,22 @@ function Timeline() {
                         ) : null}
                       </div>
                       <div className="truncate font-mono text-[11px] text-muted-foreground">
-                        {it.path ?? it.machineId}
+                        {doc.path ?? doc.machineId}
                       </div>
+                      {opens.length > 1 ? (
+                        <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground/60">
+                          réouvert · {opens.slice(1).map((o) => formatTime(o)).join(" · ")}
+                        </div>
+                      ) : null}
                     </div>
-                    {it.path && online.has(it.machineId) ? (
+                    {doc.path && online.has(doc.machineId) ? (
                       <OpenButtons
-                        documentId={it.documentId}
-                        machineName={it.machineId}
+                        documentId={doc.documentId}
+                        machineName={doc.machineId}
                       />
                     ) : null}
                     <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">
-                      {formatWhen(it.openedAt)}
+                      {formatWhen(doc.openedAt)}
                     </span>
                   </div>
                 ))}

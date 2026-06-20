@@ -8,6 +8,11 @@ export function formatWhen(value: Date | string | number) {
   });
 }
 
+export function formatTime(value: Date | string | number) {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function formatDay(value: Date | string | number) {
   const date = value instanceof Date ? value : new Date(value);
   return date.toLocaleDateString("fr-FR", {
