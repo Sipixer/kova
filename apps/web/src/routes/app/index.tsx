@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Loader2, Search, Sparkles } from "lucide-react";
 
-import { FileChip } from "@/components/file-chip";
+import { FileIcon } from "@/components/file-icon";
 import { OnlineDot } from "@/components/online-dot";
 import { Button } from "@/components/ui/button";
 import { platformLabel, useMachines } from "@/hooks/use-machines";
@@ -66,18 +66,21 @@ function Accueil() {
                   key={it.id}
                   className="flex items-center gap-3.5 rounded-xl px-3.5 py-3 hover:bg-muted/60"
                 >
-                  <FileChip source={it.source} />
+                  <FileIcon source={it.source} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-semibold">
+                      <span
+                        className="truncate text-sm font-semibold"
+                        title={it.path ?? undefined}
+                      >
                         {it.title}
                       </span>
                       {!it.embedded ? (
                         <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
                       ) : null}
                     </div>
-                    <div className="truncate font-mono text-[11px] text-muted-foreground">
-                      {it.path ?? it.machineId}
+                    <div className="truncate text-[12px] text-muted-foreground">
+                      {it.summary ?? it.path ?? it.machineId}
                     </div>
                   </div>
                   <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">

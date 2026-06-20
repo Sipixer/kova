@@ -8,6 +8,7 @@ import { db } from "../db/client";
 import { documents, opens } from "../db/schema";
 import { embed } from "../embedding";
 import { presence } from "../presence";
+import { summarize } from "../summarize";
 
 const OWNER = "dev"; // until Better Auth lands
 
@@ -125,6 +126,7 @@ export const agentRouter = {
             title: input.title,
             source: input.source,
             content: input.content ?? null,
+            summary: summarize(input.content, input.source),
             lastModified,
           })
           .returning({ id: documents.id });
@@ -142,6 +144,7 @@ export const agentRouter = {
               title: input.title,
               source: input.source,
               content: input.content ?? null,
+              summary: summarize(input.content, input.source),
               lastModified: lastModified ?? existing.lastModified,
               embedding: null,
               updatedAt: new Date(),

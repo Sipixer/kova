@@ -22,6 +22,7 @@ const timelineFields = {
   path: documents.path,
   source: documents.source,
   machineId: documents.machineId,
+  summary: documents.summary,
   snippet: sql<string | null>`left(${documents.content}, 220)`,
   embedded: sql<boolean>`${documents.embedding} IS NOT NULL`,
 };
@@ -34,6 +35,7 @@ const TimelineRowSchema = z.object({
   path: z.string(),
   source: z.string(),
   machineId: z.string(),
+  summary: z.string().nullable(),
   snippet: z.string().nullable(),
   embedded: z.boolean(),
 });

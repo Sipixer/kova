@@ -23,6 +23,7 @@ export const documents = pgTable(
     title: text("title").notNull(),
     source: text("source").notNull(), // ext: docx, pdf, png…
     content: text("content"),
+    summary: text("summary"), // tiny one-liner about the file, for display
     embedding: vector("embedding", { dimensions: 384 }),
     lastModified: timestamp("last_modified", { withTimezone: true }),
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true })

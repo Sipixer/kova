@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { FileChip } from "@/components/file-chip";
+import { FileIcon } from "@/components/file-icon";
 import { OpenButtons } from "@/components/open-file-button";
 import { useMachines } from "@/hooks/use-machines";
 import { formatWhen } from "@/lib/format";
@@ -108,7 +108,7 @@ function Recherche() {
               key={it.id}
               className="flex items-start gap-3.5 rounded-2xl border border-border bg-card p-4"
             >
-              <FileChip source={it.source} />
+              <FileIcon source={it.source} className="mt-0.5 size-6" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="text-[15px] font-bold">{it.title}</span>
