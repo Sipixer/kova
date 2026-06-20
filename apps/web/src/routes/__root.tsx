@@ -8,6 +8,7 @@ import {
   createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "sonner";
 
 import type { orpc } from "@/utils/orpc";
 
@@ -43,6 +44,7 @@ function RootDocument() {
       </head>
       <body>
         <Outlet />
+        <Toaster richColors position="bottom-right" />
         <TanStackDevtools
           plugins={[
             {

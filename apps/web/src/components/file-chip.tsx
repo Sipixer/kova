@@ -1,30 +1,35 @@
 import { cn } from "@/lib/utils";
 
 const STYLES: Record<string, string> = {
-  XLS: "bg-primary/10 text-primary",
-  DOC: "bg-foreground/8 text-foreground",
-  PDF: "bg-destructive/10 text-destructive",
-  WEB: "bg-accent text-accent-foreground",
-  IMG: "bg-chart-4/20 text-foreground",
+  pdf: "bg-destructive/10 text-destructive",
+  docx: "bg-accent text-accent-foreground",
+  doc: "bg-accent text-accent-foreground",
+  xlsx: "bg-primary/10 text-primary",
+  xls: "bg-primary/10 text-primary",
+  csv: "bg-primary/10 text-primary",
+  md: "bg-foreground/8 text-foreground",
+  txt: "bg-foreground/8 text-foreground",
+  window: "bg-muted text-muted-foreground",
 };
 
-/** Small monospace file-type chip (XLS, PDF, WEB…). */
+/** Small monospace chip for a capture source (PDF, DOCX, XLSX…). */
 export function FileChip({
-  type,
+  source,
   className,
 }: {
-  type: string;
+  source: string;
   className?: string;
 }) {
+  const key = source.toLowerCase();
   return (
     <span
       className={cn(
         "shrink-0 rounded-md px-1.5 py-1 font-mono text-[10.5px] font-bold uppercase",
-        STYLES[type] ?? "bg-muted text-muted-foreground",
+        STYLES[key] ?? "bg-muted text-muted-foreground",
         className,
       )}
     >
-      {type}
+      {source}
     </span>
   );
 }

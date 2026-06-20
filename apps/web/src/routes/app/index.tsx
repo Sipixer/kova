@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Search, Sparkles } from "lucide-react";
 
@@ -5,45 +6,21 @@ import { FileChip } from "@/components/file-chip";
 import { OnlineDot } from "@/components/online-dot";
 import { Button } from "@/components/ui/button";
 import { platformLabel, useMachines } from "@/hooks/use-machines";
+import { formatWhen } from "@/lib/format";
+import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/app/")({
   component: Accueil,
 });
 
-const RECENT = [
-  {
-    type: "XLS",
-    title: "Budget T2 2026.xlsx",
-    app: "Excel",
-    machine: "MacBook de Léa",
-    time: "il y a 2 h",
-  },
-  {
-    type: "PDF",
-    title: "Contrat prestation — Navio.pdf",
-    app: "Aperçu",
-    machine: "MacBook de Léa",
-    time: "il y a 4 h",
-  },
-  {
-    type: "WEB",
-    title: "Pricing — Linear",
-    app: "Chrome",
-    machine: "PC Bureau",
-    time: "hier",
-  },
-  {
-    type: "DOC",
-    title: "Notes de réunion — Q2.docx",
-    app: "Word",
-    machine: "PC Bureau",
-    time: "hier",
-  },
-];
-
 function Accueil() {
   const { data: machines } = useMachines();
   const machineList = machines ?? [];
+
+  const recent = useQuery(
+    orpc.captures.recent.queryOptions({ input: { limit: 6 } }),
+  );
+  const recentList = recent.data ?? [];
 
   return (
     <div className="px-4 py-8 pb-16 sm:px-10">
@@ -79,25 +56,31 @@ function Accueil() {
             </Link>
           </div>
           <div className="flex flex-col">
-            {RECENT.map((it) => (
-              <div
-                key={it.title}
-                className="flex items-center gap-3.5 rounded-xl px-3.5 py-3 hover:bg-muted/60"
-              >
-                <FileChip type={it.type} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">
-                    {it.title}
-                  </div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
-                    {it.app} · {it.machine}
-                  </div>
-                </div>
-                <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">
-                  {it.time}
-                </span>
+            {recentList.length === 0 ? (
+              <div className="px-3.5 py-4 text-[13px] text-muted-foreground">
+                Rien encore. Ouvrez un document pendant que l'agent tourne.
               </div>
-            ))}
+            ) : (
+              recentList.map((it) => (
+                <div
+                  key={it.id}
+                  className="flex items-center gap-3.5 rounded-xl px-3.5 py-3 hover:bg-muted/60"
+                >
+                  <FileChip source={it.source} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">
+                      {it.title}
+                    </div>
+                    <div className="truncate font-mono text-[11px] text-muted-foreground">
+                      {it.path ?? it.machineId}
+                    </div>
+                  </div>
+                  <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground/80">
+                    {formatWhen(it.capturedAt)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </section>
 

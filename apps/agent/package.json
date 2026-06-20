@@ -11,7 +11,8 @@
   "dependencies": {
     "@kova/api": "workspace:*",
     "@orpc/client": "catalog:",
-    "@orpc/server": "catalog:"
+    "@orpc/server": "catalog:",
+    "officeparser": "^7.2.1"
   },
   "devDependencies": {
     "@kova/config": "workspace:*",

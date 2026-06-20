@@ -11,12 +11,15 @@
   },
   "scripts": {},
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@kova/env": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9",
     "zod": "catalog:"
   },
   "devDependencies": {
